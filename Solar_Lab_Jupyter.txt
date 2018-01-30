@@ -1,0 +1,514 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import misc
+import os, os.path
+from scipy.interpolate import *
+from pylab import *
+import matplotlib.lines as mlines
+
+%matplotlib inline
+
+I = 1619
+J = 1219
+imreshSumFinal = [[0 for col in range(I)] for row in range(J)]
+Cx = [0 for col in range(100)]
+Cy = [0 for col in range(100)]
+
+#FilterName = ['U', 'V', 'B', 'I', 'R']
+#lambd = [1, 420e-9, 547e-9, 871e-9, 648e-9]
+#Ilambd = [1, 3.6e13, 4.5e13, 1.6e13, 2.8e13]
+#deltalambd = [17.5, 45, 16.5, 118, 78.5]
+
+
+FilterName = ['U', 'B', 'V', 'R', 'I']
+lambd = [1, 420e-9, 547e-9, 648e-9, 871e-9]
+Ilambd = [1, 3.6e13, 4.5e13, 2.8e13, 1.6e13]
+deltalambd = [17.5, 45, 16.5, 78.5, 118]
+
+# goes through all filters (from 1 to 4):
+
+#hPl = 6.626 * 10**(-34)
+#kBolz = 1.38 * 10**(-23)
+#clight = 3 * 10**8
+#lambd = 420e-9
+
+hPl = 6.626e-34
+kBolz = 1.38e-23
+clight = 3e8
+#lambd = 420e-9
+#lambd = [420e-9, 555e-9, 871e-9, 648e-9]
+#What changes per filter:
+Ratio1 = [0 for col in range(7)]
+Ratio2 = [0 for col in range(7)]
+
+p2Array = [0 for col in range(7)]
+IlArray = [0 for col in range(9)]
+TeffArray = [0 for col in range(7)]
+TtaulArray = [0 for col in range(7)]
+ErrorSum = 0
+
+for f in range(2, 5):
+
+    imreshSum = [[0 for col in range(I)] for row in range(J)]
+    imSum = [[0 for col in range(I)] for row in range(J)]
+    SkySum = [[0 for col in range(I)] for row in range(J)]
+    print('Filter No ' + str(f) + ' - ' + FilterName[f])
+
+    #############################################################
+    ## Here we will work firstly with graphical representation ##
+    
+    #Goes though all pictures (20 in our case):
+    for p in range(0,1):
+    
+        print('(Filter ' + FilterName[f] + ') Picture No ' + str(p))
+        myfile = ('f' + str(f) + '_' + str(p) + '.tif') 
+        thisFileName = ('R:\\AstroMundus\\AstroLab\\5_dec_oldad\\' + myfile)
+        im = misc.imread(thisFileName)
+        imresh = im.reshape(1219,1619)
+            
+        myfilesky = ('skyf' + str(f) + '_' + str(p) + '.tif') 
+        thisFileSky = ('R:\\AstroMundus\\AstroLab\\Sky\\' + myfilesky)
+        Sky = misc.imread(thisFileSky)
+        Skyresh = Sky.reshape(1219,1619)
+        ####################################################################################
+        
+        threshold = 10000
+        for j in range(0,1619):
+            for i in range(0,1219):
+                if (imresh[i,j] < threshold):
+                    imresh[i,j] = 0
+                else: imresh[i,j] = 1
+
+        #plt.figure()
+        #plt.imshow(imreshtresh)
+
+        # Now, it is time to find the center of the Sun
+        found = False
+        for j in range(0,1619):
+            if found:
+                break
+            for i in range(0,1219):
+                if (imresh[i,j] == 1):
+                    #print("1st point is: ")
+                    FirstPoint = [j,i]
+#                    print('1st point is:' + str(FirstPoint))
+                    #print(FirstPoint)
+                    found = True
+                    break  
+
+
+        found = False
+        for j in range(1619-1, -1, -1):
+            if found:
+                break
+            for i in range(0,1219):
+                if (imresh[i,j] == 1):
+                    #print("2nd point is: ")
+                    SecondPoint = [j,i]
+#                    print('2nd point is:' + str(SecondPoint))
+                    #print(SecondPoint)
+                    found = True
+                    break             
+
+
+        found = False            
+        for i in range(0,1219):
+            if found:
+                break
+            for j in range(0,1619):
+                if (imresh[i,j] == 1):
+                    #print("3rd point is: ")
+                    ThirdPoint = [j,i]
+#                    print('3rd point is:' + str(ThirdPoint))
+                    #print(ThirdPoint)
+                    found = True
+                    break   
+
+        found = False            
+        for i in range(1219-1, -1, -1):
+            if found:
+                break
+            for j in range(0, 1619):
+                if (imresh[i,j] == 1):
+                    #print("4th point is: ")
+                    FourthPoint = [j,i]
+#                    print('4th point is:' + str(FourthPoint))
+                    #print(FourthPoint)
+                    found = True
+                    break 
+
+        #Now let us mathematically find an intersection of these 2 lines:
+        # Center of the sun is C = (Cx, Cy)
+        Cx[p] = ((FirstPoint[0]*SecondPoint[1]-FirstPoint[1]*SecondPoint[0])*(ThirdPoint[0]-FourthPoint[0])
+             -(FirstPoint[0]-SecondPoint[0])*(ThirdPoint[0]*FourthPoint[1]-ThirdPoint[1]*FourthPoint[0])
+             )/((FirstPoint[0]-SecondPoint[0])*(ThirdPoint[1]-FourthPoint[1])-(FirstPoint[1]-SecondPoint[1])*
+                (ThirdPoint[0]-FourthPoint[0]))
+
+        Cy[p] = ((FirstPoint[0]*SecondPoint[1]-FirstPoint[1]*SecondPoint[0])*(ThirdPoint[1]-FourthPoint[1])
+             -(FirstPoint[1]-SecondPoint[1])*(ThirdPoint[0]*FourthPoint[1]-ThirdPoint[1]*FourthPoint[0])
+             )/((FirstPoint[0]-SecondPoint[0])*(ThirdPoint[1]-FourthPoint[1])-(FirstPoint[1]-SecondPoint[1])*
+                (ThirdPoint[0]-FourthPoint[0]))
+
+        myfile = ('f' + str(f) + '_' + str(p) + '.tif') 
+        thisFileName = ('R:\\AstroMundus\\AstroLab\\5_dec_oldad\\' + myfile)
+        im = misc.imread(thisFileName)
+        imresh = im.reshape(1219,1619)        
+        # Let's not shift the center of the next image to the center of the first one in order to find an average
+        imreshSum = imreshSum + (np.roll(np.roll(imresh, (Cy[0]-Cy[p]), axis=None), (Cx[0]-Cx[p]), axis=0))         
+        SkySum = SkySum + Skyresh
+        print('imreshSum: ' + str(imreshSum[Cx[p],Cy[p]]))
+        
+        #####################
+        ##  Data analysis  ##
+        #####################
+        
+        R1 = Cx[p] - FirstPoint[0]
+        R2 = SecondPoint[0] - Cx[p]
+        R = (R1+R2)/2
+        
+        #print(R) 
+        #print(2*R/9)
+        rout = [0 for x in range(10)]
+        rin = [0 for x in range(10)]
+        r = [0 for x in range(10)]
+        delr = [0 for x in range(9)]
+        miuk = [0 for row in range(9)]
+        delmiu = [0 for row in range(9)]
+        miukSum = 0
+        miukFIN = [0 for row in range(9)]
+        r1 = FirstPoint[0]
+        r2 = FirstPoint[0] + (2*R/9)
+        x = 0
+        y = (2*R/9)
+        ###########   ###########  ##############  
+        Ik = [0 for row in range(10)]
+        Il0 = 0   #[0 for row in range(10)]
+        Il = [0 for row in range(10)]
+        S = [0 for row in range(9)]
+        Ilratio = [0 for row in range(10)]
+        miu = 0
+        sIk = [0 for row in range(i)]
+        IkN = [[0 for col in range(1619)] for row in range(1219)]
+        IkSum = [[0 for col in range(1619)] for row in range(1219)]
+        IlFIN = [[0 for col in range(1619)] for row in range(1219)]
+        IlSum = [[0 for col in range(10)] for row in range(10)]
+        
+        # We should find the Distance parameters $\mu$ and Intensity ratios for each k-th region of the sun
+        # Then conduct the Polynomial fit of their dependance => relating to the place parallel approximation
+        # we can find the optical depth $\tau$ and then effective temperature of the sun (which is our goal)  
+        
+        R = float(SecondPoint[0]-Cx[p])
+        rin[0] = float(0)
+        rout[0] = float(R/9)
+        
+        # Here we dicvide our sun for nine regions (concentric rings) with the center in the solar center,
+        # and look for distance parameter and intensity ratio:
+        Error = [0 for col in range(9)]
+        ErrorSum = 0
+        
+        # Intensities for every picture in cycle:
+        plt.figure()
+        plt.ylabel('Intensity (ADU)')
+        plt.xlabel('Linear position')
+        plt.gca().invert_xaxis()
+        #Vertical profile
+        plt.plot(im[(ThirdPoint[1]-50):(FourthPoint[1]+50),Cx[p]], 'r')
+        #Horizontal profile
+        plt.plot(im[Cy[p],(FirstPoint[0]-50):(SecondPoint[0]+50)], 'b') 
+
+    
+        for k in range(0,9):
+            DEV = 0
+            sIk = 0
+            r[k] = (rin[k]+rout[k])/2         
+            delr[k] = (rin[k]-rout[k])/2 
+            
+            Error[k] = delr[k]/r[k]
+#            print("Error " + str(Error[k]))
+
+            miuk[k] = (np.sqrt(1-(r[k]**2/R**2))).astype(float)
+            #print('r[k]/R = ' + str(r[k]/R))
+            #print('r[k]**2/R**2 = ' + str(float(r[k]**2/R**2)))
+            #print('np.sqrt(1-(r[k]**2/R**2)) = ' + str(float(np.sqrt(1-(r[k]**2/R**2)))))
+
+            delmiu[k] = (r[k]*delr[k])/(np.sqrt(1- (r[k]**2/R**2)))
+            IkN = np.asarray([[0 for col in range(1619)] for row in range(1219)])
+            
+            #Now we determine the average intensity for each k-th region
+        ##    for z in range (int(rin[k]), int(rout[k])):
+                #Intensity of all z pixels in i-th region
+        ##        IkN = IkN + imresh[Cy[p],(Cx[p]+z)]
+            #print('For ' + str(z) + ' steps')
+            #print('Roots and Squares: '+ str((np.sqrt((x+(2*R/9))*(x+(2*R/9)) +(y+(2*R/9))*(y+(2*R/9)))+1-np.sqrt(x*x +y*y))))
+            #Number of pixels in k-th region
+        #    Nk = (2*math.pi*(np.sqrt((x+(2*R/9))*(x+(2*R/9)) +(y+(2*R/9))*(y+(2*R/9)))+1-np.sqrt(x*x +y*y))/z)
+            #print('For ' + str(Nk) + ' Pixels')
+            #Intensity associated with i-th region is the average over the intensities of all pixels
+        ##    Ik = IkN / z     
+            
+            # Average intensity for k-th region
+            Ik[k] = (imresh[Cy[p],(Cx[p]+rin[k])]+imresh[Cy[p],(Cx[p]+rout[k])])/2
+            
+            dev = ((imresh[Cy[p],(Cx[p]+rout[k])]**2-(Ik[k])**2))
+            DEV = DEV + dev
+        
+            #Standard deviation sI of Intensity Ii:
+            sIk = np.sqrt(np.fabs(DEV)/(2))
+            
+            rin[k+1] = rin[k] + (R/9)
+            rout[k+1] = rout[k] + (R/9) 
+
+            Il0 = imresh[Cx[p],Cy[p]]
+            Il[k] = Ik[k].astype(float) / Ik[0]
+            ErrorSum += abs(Error[k])
+        ErrorI = ErrorSum/9
+        print("Intensity error " + str(ErrorI))   
+
+        #Weighted mean overl all the pictures for each filter:
+        np.array(IlSum)[f][k] += np.array(Il)[k]
+        #####################
+    IlFIN[f][k] = float(IlSum[f][k])/(p+1) 
+        
+    # The values of the central intensity and the intensity ratio:
+    print('Central intensity: ' + str(Ik[0]))
+    
+    #####################
+    ### Polynomial fit ##
+    #####################
+
+    imreshSumFinal = imreshSum / (p+1)    
+    SkySumFinal = SkySum / (p+1)
+    imreshSumFinal -= SkySumFinal    
+    #################################################################################### 
+    #Just the picture of the sun after averaging over all the pictuers for this particular filter
+    plt.figure()
+    plt.title('Resulting picture for filter No ' + str(f) + ', and ' + str(p+1) + ' pictures')
+    plt.imshow(imreshSumFinal)
+    
+    myfile = ('Picture_for_f_' + str(f) + '_over_' + str(p+1) + '.tif') 
+    thisFileName = ('R:\\AstroMundus\\AstroLab\\oldad_average\\' + myfile)
+    plt.savefig(thisFileName)
+
+    
+    myfile = ('Averaged_for_f_' + str(f) + '_over_' + str(p+1) + '_pictures.tif') 
+    #thisFileName = ('R:\\AstroMundus\\AstroLab\\oldad_average\\' + myfile)
+    #imsave(thisFileName, imreshSumFinal)
+    #np.save('test1.txt', thisFileName)
+    
+    np.savetxt('data_a.txt', imreshSumFinal)    
+    
+    ###########################################################
+    ## Looking for the center of the Sun (resulting picture) ##
+    ###########################################################
+    b = np.loadtxt('data_a.txt')  
+    
+    threshold = 10000
+    for j in range(0,1619):
+        for i in range(0,1219):
+            if (b[i,j] < threshold):
+                b[i,j] = 0
+            else: b[i,j] = 1
+
+    # 4 cycles in order to find (left, right, top and bottom) points of the sun => 
+    #then we will connect them with the lines and find the center by intersecting these 2 lines
+    found = False
+    for j in range(0,1619):
+        if found:
+            break
+        for i in range(0,1219):
+            if (b[i,j] == 1):
+                #print("1st point is: ")
+                FirstPoint = [j,i]
+#                print('Left (1st) point is:' + str(FirstPoint))
+                #print(FirstPoint)
+                found = True
+                break  
+
+
+    found = False
+    for j in range(1619-1, -1, -1):
+        if found:
+            break
+        for i in range(0,1219):
+            if (b[i,j] == 1):
+                #print("2nd point is: ")
+                SecondPoint = [j,i]
+#                print('Right (2nd) point is:' + str(SecondPoint))
+                #print(SecondPoint)
+                found = True
+                break             
+
+
+    found = False            
+    for i in range(0,1219):
+        if found:
+            break
+        for j in range(0,1619):
+            if (b[i,j] == 1):
+                #print("3rd point is: ")
+                ThirdPoint = [j,i]
+#                print('Top (3rd) point is:' + str(ThirdPoint))
+                #print(ThirdPoint)
+                found = True
+                break   
+
+    found = False            
+    for i in range(1219-1, -1, -1):
+        if found:
+            break
+        for j in range(0, 1619):
+            if (b[i,j] == 1):
+                #print("4th point is: ")
+                FourthPoint = [j,i]
+#                print('Bottom (4th) point is:' + str(FourthPoint))
+                #print(FourthPoint)
+                found = True
+                break 
+
+    #NAgain, mathematical formula for the intersection of the two lines (i.e., center of the sun): 
+    Gx = ((FirstPoint[0]*SecondPoint[1]-FirstPoint[1]*SecondPoint[0])*(ThirdPoint[0]-FourthPoint[0])
+         -(FirstPoint[0]-SecondPoint[0])*(ThirdPoint[0]*FourthPoint[1]-ThirdPoint[1]*FourthPoint[0])
+         )/((FirstPoint[0]-SecondPoint[0])*(ThirdPoint[1]-FourthPoint[1])-(FirstPoint[1]-SecondPoint[1])*
+            (ThirdPoint[0]-FourthPoint[0]))
+
+    Gy = ((FirstPoint[0]*SecondPoint[1]-FirstPoint[1]*SecondPoint[0])*(ThirdPoint[1]-FourthPoint[1])
+         -(FirstPoint[1]-SecondPoint[1])*(ThirdPoint[0]*FourthPoint[1]-ThirdPoint[1]*FourthPoint[0])
+         )/((FirstPoint[0]-SecondPoint[0])*(ThirdPoint[1]-FourthPoint[1])-(FirstPoint[1]-SecondPoint[1])*
+            (ThirdPoint[0]-FourthPoint[0]))
+#    print('Final Center is: (' + str(Gx) + ', ' + str(Gy) +')')    
+
+    # After we have our center, we can plot an intensity curve
+    # Opening of averaged pictures from where they were saved previously: 
+    b = np.loadtxt('data_a.txt')    
+    ####################################################################################
+    #Just the picture of the sun after averaging over all the pictuers for this particular filter:
+    plt.figure()
+    plt.title('Averaged picture of the Sun for filter ' + str(f) + '_(' + str(p+1) + ' pictures)')
+    plt.imshow(b)
+    plt.plot([FirstPoint[0]], [FirstPoint[1]], marker='^', color='g')
+    plt.plot([SecondPoint[0]], [SecondPoint[1]], marker='o', color='r')
+    plt.plot([ThirdPoint[0]], [ThirdPoint[1]], marker='s', color='y')
+    plt.plot([FourthPoint[0]], [FourthPoint[1]], marker='^', color='y')
+    plt.plot((FirstPoint[0], SecondPoint[0]), (FirstPoint[1], SecondPoint[1]), color = 'g')
+    plt.plot((ThirdPoint[0], FourthPoint[0]), (ThirdPoint[1], FourthPoint[1]), color = 'g')
+
+    plt.plot([Gx], [Gy], marker='x', color='g')    
+    myfile = ('Final_for_f_' + str(f) + '_(' + str(p+1) + ' pictures)+Center_Point.tif') 
+    thisFileName = ('R:\\AstroMundus\\AstroLab\\oldad_average\\' + myfile)
+    plt.savefig(thisFileName)
+    
+   
+    myfile = ('Final_Center_to_Limb_f_' + str(f) + '_' + str(p+1) + '_picts.tif') 
+    thisFileName = ('R:\\AstroMundus\\AstroLab\\oldad_average\\' + myfile)
+    plt.savefig(thisFileName)
+
+    ####################
+    ## Polynomial fit ##
+    ####################
+    #We should firstly make both arrays having the same size 
+    #(Il array has one extra element because it helped us with the calculation of its elements)
+
+    #Calculating \tau, optical depth in order to find the source function 
+    # (with source function we can calculate an effective temperature from the Planck distribution)
+
+    del IlFIN[-1]
+    del Il[-1]
+    print('Intensity ratio: ' + str(Il))
+    
+    miuk1 = [0 for x in range(5)]
+    Il1 = [0 for x in range(5)]
+
+    j=0;
+    for i in range (9):
+        if miuk[i]<0.9:
+            miuk1[j]=miuk[i]
+            Il1[j]=Il[i]
+            j=j+1
+    
+    p2 = np.polyfit(miuk1, Il1, 2)    
+    p2Array[f] = p2
+    
+    print(" ")
+    print("Second order fit coefficients for filter " + FilterName[f])
+    print("p2 = " + str(p2))
+    print("a_0 = " + str(p2[2]))
+    print("a1 = " + str(p2[1]))
+    print("a2 = " + str(p2[0]/2))
+    print(" ")  
+    
+    tau = np.arange(0., 2., 0.01)
+    S = (Ilambd[f])* (p2[2] + tau*p2[1] + (tau **2)*p2[0]/2 )
+
+    Ratio1[f] = (hPl*clight)/((kBolz*lambd[f]))
+    Ratio2[f] = (2*hPl*(clight**2))/(lambd[f]**5)
+    print("Ratio1 for filter" + str(f) + ' - ' + FilterName[f] + ' is ' + str(Ratio1[f]))
+    print("Ratio2 for filter" + str(f) + ' - ' + FilterName[f] + ' is ' + str(Ratio2[f]))
+
+    Ttaul = Ratio1[f] / (np.log(1 + Ratio2[f] /S ) )
+    tau23 = 0.666
+    Seff = (Ilambd[f])* (p2[2] + (tau23)*p2[1] + (tau23**2)*p2[0]/2 )
+    print("Seff" + str(Seff))
+    Teff = Ratio1[f] / (np.log(1 + Ratio2[f] /Seff ) )
+    print("EFFECTIVE TEMPERATURE for filter " + FilterName[f] + " " + str(Teff))    
+#    ErrorTeff = 2*ErrorI + deltalambd[f] 
+#    deltaTeff = abs(Teff*(1-abs(ErrorTeff)))
+#    print("Delta Teff " + str(deltaTeff))
+    TeffArray[f] = Teff
+    TtaulArray[f] = Ttaul
+    IlArray[f] = Il
+
+    
+    #print(miuk)
+    #print(IlArray)
+ColShape = ['w--', 'rv', 'bs', 'c.', 'm^', 'b:']
+ColShape2 = ['w--', 'rv', 'r-', 'b-.', 'm--', 'b:']
+Color = ['w', 'm', 'r', 'b', 'c', 'm']
+Color2 = ['w', 'r', 'r', 'b.', 'm', 'b']
+Shape = [u'--', u'v', u's', u'.', u'^', u'o']
+Shape2 = [u'--', u'-', u'--', u'-.', u'--', u':']
+lines = [0 for col in range(7)]
+labels = [0 for col in range(7)]
+
+plt.figure()
+for f in range(2, 5):
+    
+    plt.xlabel(r'$\mu$')
+    plt.ylabel('Intensity ratio I(0,' + r'$\mu$)' + '/I(0,1)')
+    plt.scatter(miuk, IlArray[f], marker=Shape[f])   
+    #plt.plot(miuk, Il, 'g^')    
+    plt.plot(miuk1, polyval(p2Array[f],miuk1))   
+    #plt.legend([red_dot, (red_dot, white_cross), ], ["B", "I", "R"])
+line2 = mlines.Line2D([], [], color='r', marker='^', markersize=5, label="B")
+line3 = mlines.Line2D([], [], color='b', marker='s', markersize=5, label="I")
+line4 = mlines.Line2D([], [], color='g', marker='.', markersize=5, label="R")
+lines = [line2, line3, line4]
+labels = [line.get_label() for line in lines]
+plt.legend(lines, labels)   
+    
+plt.figure()
+for f in range(2, 5):
+    #plt.figure()
+    plt.xlabel(r'$\tau$')
+    plt.ylabel('Temperature T(' + r'$\tau$)')
+    plt.plot(tau, TtaulArray[f], ColShape2[f])
+    plt.plot(tau23, TeffArray[f], ColShape2[f])
+#plt.show()
+line2 = mlines.Line2D([], [], color='m', linestyle=Shape2[2], label="B")
+line3 = mlines.Line2D([], [], color='r', linestyle=Shape2[1], label="I")
+line4 = mlines.Line2D([], [], color='b', linestyle=Shape2[3], label="R")
+lines = [line2, line3, line4]
+labels = [line.get_label() for line in lines]
+plt.legend(lines, labels)
+
+# Weighted average effective temperature:
+TeffSum = 0
+TeffFinal = 0
+o = 0
+for f in range(2, 5):
+    TeffSum += TeffArray[f]
+    o += 1
+    
+TeffFinal = TeffSum/o
+print("Final effective temperature")
+print(TeffFinal)
+#print(abs(deltaTeff))
