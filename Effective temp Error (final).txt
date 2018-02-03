@@ -1,0 +1,19 @@
+#From the Jupyter Notebook
+
+#Temperature values
+Teff = [6173.43, 6219.78, 6032.82]
+#Error values for each temperature 
+Sigma = [90.01, 438.82, 157.00 ]
+print(np.sum(Teff/np.power(Sigma,2)))
+print(np.sum(1/np.power(Sigma,2)))
+
+print(np.sum(Teff/np.power(Sigma,2)) / np.sum(1/np.power(Sigma,2)))
+
+FinalTeff = (np.sum(Teff/np.power(Sigma,2)) / (np.sum(1/np.power(Sigma,2))))
+#print(FinalTeff)
+print("Final effective temperature!: ", FinalTeff)
+
+# Error associated with the finaal effective temperature
+
+FinalErrTeff = FinalTeff*np.sqrt( np.sum(np.power((Sigma* np.power(Teff,-1) ),2)) )
+print("Final uncertainty in effective temperature!: ", FinalErrTeff)
